@@ -55,31 +55,10 @@
                         Sign In <i class="fa-solid fa-arrow-right ml-2"></i>
                     </button>
                 </form>
-                <div class="flex items-center justify-between mt-4">
-                    <button type="button" onclick="showPasswordResetPanel()" class="text-xs font-semibold text-purple-600 hover:text-purple-800 transition">Change local password</button>
+                <div class="text-center mt-4">
                     <button type="button" onclick="showForgotPasswordPanel()" class="text-xs font-semibold text-blue-600 hover:text-blue-800 transition">Forgot password?</button>
                 </div>
                 <p class="text-xs text-center text-gray-400 mt-3">Cloud Database Mode (Supabase Connected)</p>
-            </div>
-
-            <!-- Local Password Reset Panel -->
-            <div id="passwordResetPanel" class="hidden">
-                <h2 class="text-base font-bold text-gray-800 text-center mb-2">Set a new password</h2>
-                <p class="text-xs text-center text-gray-500 mb-4">Update local login password for Humriyah Branch.</p>
-                <form onsubmit="updatePassword(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">New password</label>
-                        <input type="password" id="newPassword" required minlength="8" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition text-sm" placeholder="At least 8 characters">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Confirm new password</label>
-                        <input type="password" id="confirmNewPassword" required minlength="8" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition text-sm" placeholder="Repeat your new password">
-                    </div>
-                    <div class="flex gap-2">
-                        <button type="button" onclick="hidePasswordResetPanel()" class="w-1/3 py-3 px-4 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition text-xs">Cancel</button>
-                        <button type="submit" class="w-2/3 py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:opacity-95 transition text-xs">Save new password</button>
-                    </div>
-                </form>
             </div>
 
             <!-- Forgot Password Email Request Panel -->
@@ -473,9 +452,8 @@
         </main>
     </div>
 
-    <!-- JAVASCRIPT LOGIC (SUPABASE CLOUD + LOCALSTORAGE FALLBACK) -->
+    <!-- JAVASCRIPT LOGIC (SUPABASE CLOUD AUTH) -->
     <script>
-        // REPLACE WITH YOUR SUPABASE URL AND PUBLISHABLE/ANON KEY
         const SUPABASE_URL = 'https://czkjyrqssszlxwkwpsbv.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_ShLO9fVWoiEFpKoF77zRBg_DK7jZOXM';
         
@@ -488,10 +466,7 @@
             console.warn('Supabase initialization warning:', e);
         }
 
-        const DEFAULT_EMAIL = 'dreamcityruwi@gmail.com';
-        const DEFAULT_PASS = 'Mukti@humriyah';
         const STORAGE_KEY = 'dcu_humriyah_accounting_v1';
-        const AUTH_KEY = 'dcu_humriyah_auth_v1';
 
         // Helper to convert date strings (YYYY-MM-DD) to DD/MM/YYYY format
         function formatDateToDMY(dateStr) {
@@ -513,19 +488,12 @@
         async function loadLocalData() {
             try {
                 if (supabaseClient) {
-                    // Load Tickets from Supabase
                     const { data: ticketsData, error: tError } = await supabaseClient.from('tickets').select('*');
-                    if (!tError && ticketsData) {
-                        appData.tickets = ticketsData;
-                    }
+                    if (!tError && ticketsData) appData.tickets = ticketsData;
 
-                    // Load Expenses from Supabase
                     const { data: expData, error: eError } = await supabaseClient.from('expenses').select('*');
-                    if (!eError && expData) {
-                        appData.expenses = expData;
-                    }
+                    if (!eError && expData) appData.expenses = expData;
                 } else {
-                    // Fallback to localStorage if Supabase is not configured
                     const raw = localStorage.getItem(STORAGE_KEY);
                     if (raw) {
                         const parsed = JSON.parse(raw);
@@ -534,7 +502,6 @@
                     }
                 }
 
-                // Load saved logo from localStorage
                 const parsedLocal = localStorage.getItem(STORAGE_KEY);
                 if (parsedLocal) {
                     try {
@@ -557,14 +524,6 @@
             } catch (err) {
                 console.error('Error saving local data:', err);
             }
-        }
-
-        function getCredentials() {
-            try {
-                const raw = localStorage.getItem(AUTH_KEY);
-                if (raw) return JSON.parse(raw);
-            } catch (e) {}
-            return { email: DEFAULT_EMAIL, password: DEFAULT_PASS };
         }
 
         function handleLogoChange(e) {
@@ -593,20 +552,8 @@
             e.target.value = '';
         }
 
-        function showPasswordResetPanel() {
-            document.getElementById('loginFormContainer').classList.add('hidden');
-            document.getElementById('forgotPasswordPanel').classList.add('hidden');
-            document.getElementById('passwordResetPanel').classList.remove('hidden');
-        }
-
-        function hidePasswordResetPanel() {
-            document.getElementById('passwordResetPanel').classList.add('hidden');
-            document.getElementById('loginFormContainer').classList.remove('hidden');
-        }
-
         function showForgotPasswordPanel() {
             document.getElementById('loginFormContainer').classList.add('hidden');
-            document.getElementById('passwordResetPanel').classList.add('hidden');
             document.getElementById('forgotPasswordPanel').classList.remove('hidden');
         }
 
@@ -666,24 +613,6 @@
             }
         }
 
-        function updatePassword(e) {
-            e.preventDefault();
-            const password = document.getElementById('newPassword').value;
-            const confirmation = document.getElementById('confirmNewPassword').value;
-            if (password !== confirmation) {
-                alert('The passwords do not match.');
-                return;
-            }
-
-            const creds = getCredentials();
-            creds.password = password;
-            localStorage.setItem(AUTH_KEY, JSON.stringify(creds));
-            alert('Password updated. Please sign in with your new password.');
-            document.getElementById('newPassword').value = '';
-            document.getElementById('confirmNewPassword').value = '';
-            hidePasswordResetPanel();
-        }
-
         // Initialize App
         document.addEventListener('DOMContentLoaded', async () => {
             await loadLocalData();
@@ -694,7 +623,6 @@
                     if (event === "PASSWORD_RECOVERY") {
                         document.getElementById('loginScreen').classList.remove('hidden');
                         document.getElementById('loginFormContainer').classList.add('hidden');
-                        document.getElementById('passwordResetPanel').classList.add('hidden');
                         document.getElementById('forgotPasswordPanel').classList.add('hidden');
                         document.getElementById('recoveryModal').classList.remove('hidden');
                     }
@@ -706,7 +634,6 @@
             if (hash && hash.includes('type=recovery')) {
                 document.getElementById('loginScreen').classList.remove('hidden');
                 document.getElementById('loginFormContainer').classList.add('hidden');
-                document.getElementById('passwordResetPanel').classList.add('hidden');
                 document.getElementById('forgotPasswordPanel').classList.add('hidden');
                 document.getElementById('recoveryModal').classList.remove('hidden');
             }
@@ -727,14 +654,22 @@
             refreshAllViews();
         });
 
-        function handleLogin(e) {
+        async function handleLogin(e) {
             e.preventDefault();
             const email = document.getElementById('loginUser').value.trim().toLowerCase();
             const password = document.getElementById('loginPassword').value;
-            const creds = getCredentials();
 
-            if (email !== creds.email.toLowerCase() || password !== creds.password) {
-                alert('Invalid email or password.');
+            if (supabaseClient) {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                if (error) {
+                    alert('Invalid email or password.');
+                    return;
+                }
+            } else {
+                alert('Supabase client not initialized.');
                 return;
             }
 
@@ -745,6 +680,9 @@
         }
 
         function handleLogout() {
+            if (supabaseClient) {
+                supabaseClient.auth.signOut();
+            }
             sessionStorage.removeItem('dcu_humriyah_logged_in');
             document.getElementById('appContainer').classList.add('hidden');
             document.getElementById('loginScreen').classList.remove('hidden');
@@ -965,15 +903,12 @@ Enter payment amount to add:`);
         function refreshAllViews() {
             const selectedMonth = getSelectedMonth(); // YYYY-MM
             
-            // Search query filter for tab 1
             const tQuery = (document.getElementById('ticketSearchInput')?.value || '').toLowerCase().trim();
 
-            // Labels
             document.getElementById('ticketMonthLabel').innerText = selectedMonth;
             document.getElementById('expenseMonthLabel').innerText = selectedMonth;
             document.getElementById('reportTicketMonthTxt').innerText = selectedMonth;
 
-            // Filter data by month
             const filteredTicketsMonth = appData.tickets
                 .filter(t => t.date && t.date.startsWith(selectedMonth))
                 .sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -982,7 +917,6 @@ Enter payment amount to add:`);
                 .filter(e => e.date && e.date.startsWith(selectedMonth))
                 .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
-            // Apply quick search filters on Tickets tab
             const filteredTickets = filteredTicketsMonth.filter(t => {
                 if(!tQuery) return true;
                 return (t.name && t.name.toLowerCase().includes(tQuery)) ||
@@ -992,7 +926,6 @@ Enter payment amount to add:`);
                        (t.ref && t.ref.toLowerCase().includes(tQuery));
             });
 
-            // Render Tickets Table (Passenger before Ref No)
             let ticketHtml = '';
             filteredTickets.forEach((t, idx) => {
                 ticketHtml += `
@@ -1019,7 +952,6 @@ Enter payment amount to add:`);
             document.getElementById('ticketTableBody').innerHTML = ticketHtml || `<tr><td colspan="12" class="p-6 text-center text-gray-400">No ticket records found for ${selectedMonth}</td></tr>`;
             document.getElementById('ticketCountBadge').innerText = `${filteredTickets.length} records`;
 
-            // Render Expenses Table
             let expHtml = '';
             filteredExpenses.forEach((ex, idx) => {
                 expHtml += `
@@ -1038,7 +970,6 @@ Enter payment amount to add:`);
             document.getElementById('expenseTableBody').innerHTML = expHtml || `<tr><td colspan="5" class="p-6 text-center text-gray-400">No expense records found for ${selectedMonth}</td></tr>`;
             document.getElementById('expenseCountBadge').innerText = `${filteredExpenses.length} records`;
 
-            // Render Ticket Reports
             const repTicketCount = filteredTicketsMonth.length;
             const repTicketSales = filteredTicketsMonth.reduce((acc, t) => acc + t.sale, 0);
             const repTicketPaid = filteredTicketsMonth.reduce((acc, t) => acc + t.paid, 0);
@@ -1053,7 +984,6 @@ Enter payment amount to add:`);
             document.getElementById('repTicketCost').innerText = repTicketCost.toFixed(5);
             document.getElementById('repTicketProfit').innerText = repTicketProfit.toFixed(2);
 
-            // Render Ticket Credits (All tickets with due > 0 - Passenger before Ref No)
             const dueTickets = appData.tickets.filter(t => t.due > 0);
             let creditHtml = '';
             dueTickets.forEach((t, idx) => {
@@ -1080,7 +1010,6 @@ Enter payment amount to add:`);
             document.getElementById('creditsTableBody').innerHTML = creditHtml || `<tr><td colspan="11" class="p-6 text-center text-gray-400">No outstanding ticket credits found</td></tr>`;
         }
 
-        // --- GLOBAL SEARCH ENGINE ---
         function goToTicketTransaction(id) {
             const ticket = appData.tickets.find(t => String(t.id) === String(id));
             if (!ticket) return;
@@ -1149,7 +1078,6 @@ Enter payment amount to add:`);
             container.innerHTML = html;
         }
 
-        // --- PDF EXPORT (A4 Sheet formatting) ---
         function exportCurrentViewPDF() {
             let elementId = 'ticketPrintArea';
             let filename = 'Humriyah_Ticket_Sales_Report.pdf';
