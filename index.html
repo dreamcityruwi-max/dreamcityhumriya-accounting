@@ -422,6 +422,33 @@
                             <span id="repTicketProfit" class="text-base font-bold text-emerald-600 ml-2">0.00</span>
                         </div>
                     </div>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 flex justify-between items-center gap-4 flex-wrap">
+                        <div>
+                            <span class="text-xs font-semibold text-gray-600 uppercase">Total Monthly Expenses:</span>
+                            <span id="repTicketExpenses" class="text-base font-bold text-red-600 ml-2">0.00</span>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold text-gray-600 uppercase">Net Profit:</span>
+                            <span id="repTicketNetProfit" class="text-base font-bold text-emerald-700 ml-2">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Financial Performance Graph -->
+                    <div class="mt-6 bg-white p-4 sm:p-5 rounded-xl border border-gray-200">
+                        <div class="mb-4">
+                            <h3 class="text-sm font-bold text-gray-800">Monthly Financial Performance</h3>
+                            <p class="text-xs text-gray-500 mt-1">Comparison of sales, gross profit, expenses and net profit for the selected month</p>
+                        </div>
+                        <div id="ticketReportChart" class="w-full" role="img" aria-label="Monthly financial performance bar chart">
+                            <p class="text-xs text-gray-400 text-center py-8">Chart will appear when the report loads.</p>
+                        </div>
+                        <div class="flex flex-wrap justify-center gap-x-5 gap-y-2 mt-3 text-xs text-gray-600">
+                            <span class="inline-flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm bg-blue-500"></span>Sales Revenue</span>
+                            <span class="inline-flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm bg-indigo-500"></span>Gross Profit</span>
+                            <span class="inline-flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm bg-red-500"></span>Expenses</span>
+                            <span class="inline-flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>Net Profit</span>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -976,6 +1003,8 @@ Enter payment amount to add:`);
             const repTicketDue = filteredTicketsMonth.reduce((acc, t) => acc + t.due, 0);
             const repTicketCost = filteredTicketsMonth.reduce((acc, t) => acc + (parseFloat(t.cost) || 0), 0);
             const repTicketProfit = repTicketSales - repTicketCost;
+            const repTicketExpenses = filteredExpenses.reduce((acc, expense) => acc + (parseFloat(expense.amount) || 0), 0);
+            const repTicketNetProfit = repTicketProfit - repTicketExpenses;
 
             document.getElementById('repTicketCount').innerText = repTicketCount;
             document.getElementById('repTicketSales').innerText = repTicketSales.toFixed(2);
@@ -983,6 +1012,15 @@ Enter payment amount to add:`);
             document.getElementById('repTicketDue').innerText = repTicketDue.toFixed(2);
             document.getElementById('repTicketCost').innerText = repTicketCost.toFixed(5);
             document.getElementById('repTicketProfit').innerText = repTicketProfit.toFixed(2);
+            document.getElementById('repTicketExpenses').innerText = repTicketExpenses.toFixed(2);
+            document.getElementById('repTicketNetProfit').innerText = repTicketNetProfit.toFixed(2);
+
+            renderTicketReportChart([
+                { label: 'Sales Revenue', value: repTicketSales, color: '#3b82f6' },
+                { label: 'Gross Profit', value: repTicketProfit, color: '#6366f1' },
+                { label: 'Expenses', value: repTicketExpenses, color: '#ef4444' },
+                { label: 'Net Profit', value: repTicketNetProfit, color: '#10b981' }
+            ]);
 
             const dueTickets = appData.tickets.filter(t => t.due > 0);
             let creditHtml = '';
@@ -1008,6 +1046,79 @@ Enter payment amount to add:`);
                 `;
             });
             document.getElementById('creditsTableBody').innerHTML = creditHtml || `<tr><td colspan="11" class="p-6 text-center text-gray-400">No outstanding ticket credits found</td></tr>`;
+        }
+
+        // Draw the selected month's financial figures without changing or writing any records.
+        function renderTicketReportChart(items) {
+            const container = document.getElementById('ticketReportChart');
+            if (!container) return;
+
+            const values = items.map(item => Number(item.value) || 0);
+            let minValue = Math.min(0, ...values);
+            let maxValue = Math.max(0, ...values);
+
+            if (minValue === maxValue) {
+                maxValue = 1;
+            } else {
+                const padding = (maxValue - minValue) * 0.12;
+                minValue -= padding;
+                maxValue += padding;
+            }
+
+            const width = 760;
+            const height = 310;
+            const plotLeft = 82;
+            const plotRight = 742;
+            const plotTop = 24;
+            const plotBottom = 232;
+            const plotHeight = plotBottom - plotTop;
+            const plotWidth = plotRight - plotLeft;
+            const zeroY = plotTop + ((maxValue - 0) / (maxValue - minValue)) * plotHeight;
+            const yForValue = value => plotTop + ((maxValue - value) / (maxValue - minValue)) * plotHeight;
+            const formatAmount = value => value.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            let grid = '';
+            for (let i = 0; i <= 4; i++) {
+                const value = maxValue - ((maxValue - minValue) * i / 4);
+                const y = plotTop + (plotHeight * i / 4);
+                grid += `
+                    <line x1="${plotLeft}" y1="${y}" x2="${plotRight}" y2="${y}" stroke="#e5e7eb" stroke-width="1" />
+                    <text x="${plotLeft - 10}" y="${y + 4}" text-anchor="end" font-size="11" fill="#6b7280">${formatAmount(value)}</text>
+                `;
+            }
+
+            const slotWidth = plotWidth / items.length;
+            const barWidth = 76;
+            let bars = '';
+
+            items.forEach((item, index) => {
+                const centerX = plotLeft + slotWidth * (index + 0.5);
+                const valueY = yForValue(Number(item.value) || 0);
+                const barY = Math.min(zeroY, valueY);
+                const barHeight = Math.max(1, Math.abs(zeroY - valueY));
+                const labelY = (Number(item.value) || 0) >= 0
+                    ? Math.max(plotTop + 13, barY - 8)
+                    : Math.min(plotBottom + 16, barY + barHeight + 15);
+
+                bars += `
+                    <rect x="${centerX - barWidth / 2}" y="${barY}" width="${barWidth}" height="${barHeight}"
+                          rx="6" fill="${item.color}" opacity="0.9" />
+                    <text x="${centerX}" y="${labelY}" text-anchor="middle" font-size="11" font-weight="600" fill="#374151">${formatAmount(Number(item.value) || 0)}</text>
+                    <text x="${centerX}" y="266" text-anchor="middle" font-size="12" font-weight="600" fill="#4b5563">${item.label}</text>
+                `;
+            });
+
+            container.innerHTML = `
+                <svg viewBox="0 0 ${width} ${height}" width="100%" role="img"
+                     aria-label="Bar chart comparing sales revenue, gross profit, expenses and net profit">
+                    ${grid}
+                    <line x1="${plotLeft}" y1="${zeroY}" x2="${plotRight}" y2="${zeroY}" stroke="#9ca3af" stroke-width="1.5" />
+                    ${bars}
+                </svg>
+            `;
         }
 
         function goToTicketTransaction(id) {
